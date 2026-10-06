@@ -1,0 +1,13 @@
+stages:
+  - build
+
+package-addon:
+  stage: build
+  image: python:3.12-alpine
+  script:
+    - python tools/package.py
+  artifacts:
+    name: "VassilisDungeonPlaner-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - dist/VassilisDungeonPlaner-*.zip
+    expire_in: never

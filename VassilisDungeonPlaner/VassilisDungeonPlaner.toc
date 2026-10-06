@@ -1,0 +1,14 @@
+## Interface: 16001
+## Title: Vassilis DungeonPlaner
+## Notes: Events, guests, invitations and signups for WoW: Forever.
+## Notes-deDE: Termine, Gäste, Einladungen und Anmeldungen für WoW: Forever.
+## Author: Vassilios Marakis
+## Version: 0.4.0
+## SavedVariables: GuildBoardDB
+
+Locale.lua
+Core.lua
+Wire.lua
+Guests.lua
+UI.lua
+Main.lua

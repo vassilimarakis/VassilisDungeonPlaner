@@ -1,0 +1,6 @@
+.test-deps/
+__pycache__/
+dist/
+.venv/
+.env
+.env.*

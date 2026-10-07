@@ -108,10 +108,6 @@ local function input(parent, x, y, w, h, max, multiline)
             shell:SetBackdropBorderColor(unpack(focus and C.gold or (hover and C.white or C.border)))
             shell:SetBackdropColor(unpack((focus or hover) and C.row or C.bg))
             e.hint:SetShown(e:GetText() == "" and not focus)
-            if e.stateLabel then
-                e.stateLabel:SetText(focus and L("INPUT_ACTIVE") or (hover and L("CLICK_WRITE") or L("CLICK_WRITE_IDLE")))
-                e.stateLabel:SetTextColor(unpack(focus and C.gold or (hover and C.white or C.muted)))
-            end
         end
         e.updateAppearance = appearance
         for _, surface in ipairs({ shell, viewport, e }) do
@@ -140,6 +136,7 @@ local function scroll(parent, x, y, w, h)
         self:SetVerticalScroll(math.max(0, math.min(self:GetVerticalScroll() - delta * 48, math.max(0, child:GetHeight() - self:GetHeight()))))
     end)
     local track = f:CreateTexture(nil, "OVERLAY")
+    f.track = track
     track:SetColorTexture(unpack(C.border)); track:SetPoint("TOPRIGHT", -1, 0); track:SetSize(3, h)
     f.thumb = f:CreateTexture(nil, "OVERLAY")
     f.thumb:SetColorTexture(unpack(C.gold)); f.thumb:SetSize(3, h)
@@ -212,7 +209,6 @@ local function makePerson(index)
         GameTooltip:AddLine(L("LEVEL_TOOLTIP", s.level > 0 and s.level or L("UNKNOWN")), 0.7, 0.75, 0.8)
         if s.note ~= "" then GameTooltip:AddLine(L("NOTE_TOOLTIP", s.note), 1, 1, 1, true) end
         if s.kind == "M" then GameTooltip:AddLine(s.source == "WHISPER" and L("WHISPER_REPLY") or L("ADDED_BY_LEAD"), 0.7, 0.75, 0.8) end
-        if self.editable then GameTooltip:AddLine(L("CLICK_EDIT"), 0.89, 0.73, 0.43) end
         GameTooltip:Show()
     end)
     row:SetScript("OnLeave", function(self) self:SetBackdropBorderColor(unpack(C.border)); GameTooltip:Hide() end)
@@ -222,10 +218,16 @@ end
 
 function UI.Refresh()
     if not UI.frame or not UI.frame:IsShown() then return end
-    UI.languageButton.text:SetText(L("LANGUAGE_BUTTON", GB.Locale.PreferenceName()))
+    local lootMode = UI.mode == "LOOT"
+    UI.planning:SetShown(not lootMode)
+    UI.lootPanel:SetShown(lootMode)
+    selected(UI.planTab, not lootMode); selected(UI.lootTab, lootMode)
+    UI.lootTab.text:SetText(L("LOOT_TAB") .. (#GB.Loot.Inbox() > 0 and (" (" .. #GB.Loot.Inbox() .. ")") or ""))
+    UI.syncText:SetText(GB.SyncStatus())
+    if lootMode then GB.LootUI.Refresh(); return end
     UI.historyButton.text:SetText(L(UI.history and "HISTORY_ON" or "HISTORY_OFF"))
     local model = GB.model
-    UI.guild:SetText((GB.guildName and (L("GUILD_GUESTS", GB.guildName)) or L("SOLO_HEADING")) .. "  /  WoW: Forever")
+    UI.guild:SetText(GB.guildName or "")
     if UI.inboxButton then UI.inboxButton.text:SetText(L("INVITE_COUNT", model and #GB.Guests.Inbox() or 0)) end
     UI.syncText:SetText(GB.SyncStatus())
     for key, b in pairs(UI.filters) do selected(b, UI.filter == key) end
@@ -251,7 +253,6 @@ function UI.Refresh()
     UI.noEvents:SetText(L("NO_EVENTS"))
     local e = model and UI.selected and model:GetEvent(UI.selected)
     UI.detail:SetShown(e ~= nil)
-    UI.emptyDetail:SetShown(e == nil)
     if not e then return end
     local own = GB.Core.SamePlayer(e.author, GB.actor)
     local open = e.cancelled == 0 and e.start > GB.Now()
@@ -260,14 +261,31 @@ function UI.Refresh()
     UI.eventType:SetText(activityNames[e.activity])
     UI.eventWhen:SetText(L("EVENT_WHEN", when(e.start), e.capacity))
     UI.organizer:SetText(L(e.scope == "" and "ORGANIZER_PRIVATE" or "ORGANIZER_GUILD", e.author))
-    UI.description:SetText(e.note ~= "" and e.note or L("DESCRIPTION_EMPTY"))
+    local hasDescription = GB.Core.Trim(e.note) ~= ""
+    UI.description:SetText(e.note)
+    UI.description:SetShown(hasDescription)
+    UI.descriptionArea:SetShown(hasDescription)
+    -- Give the participant list the space an empty description would occupy.
+    local offset = hasDescription and 0 or -52
+    local function position(widget, x, y)
+        widget:ClearAllPoints(); widget:SetPoint("TOPLEFT", UI.detail, "TOPLEFT", x, -(y + offset))
+    end
+    position(UI.metrics, 20, 164)
+    position(UI.mySignup, 20, 214)
+    position(UI.peopleLabel, 20, 298)
+    position(UI.addGuest, 454, 290)
+    position(UI.peopleColumns, 20, 325)
+    position(UI.personScroll, 20, 354)
+    position(UI.noPeople, 31, 378)
+    UI.personScroll:SetHeight(157 - offset)
+    UI.personScroll.track:SetHeight(UI.personScroll:GetHeight())
     UI.rolesSummary:SetText(L("ROLE_COUNTS", counts.TANK, counts.HEALER, counts.DAMAGER))
     UI.capacity:SetText(L("CONFIRMED_COUNT", counts.confirmed, e.capacity))
     local current = model:GetSignup(e.event, GB.actor)
     local status = model:Status(e.event, GB.actor)
     UI.myStatus:SetText(e.cancelled == 1 and L("EVENT_CANCELLED") or statusNames[status])
     UI.myStatus:SetTextColor(unpack(e.cancelled == 1 and C.red or statusColors[status] or C.muted))
-    UI.mySummary:SetText(current and (roleNames[current.role] .. "  ·  " .. (current.note ~= "" and current.note or L("NO_NOTE"))) or L("CLICK_SIGNUP"))
+    UI.mySummary:SetText(current and (roleNames[current.role] .. (GB.Core.Trim(current.note) ~= "" and ("  ·  " .. current.note) or "")) or "")
     UI.myEditHint:SetText(current and L("EDIT_ARROW") or L("SIGNUP_ARROW"))
     active(UI.mySignup, open)
     local people = model:Participants(e.event)
@@ -293,7 +311,6 @@ function UI.Refresh()
     resizeScroll(UI.personScroll, UI.personChild, math.max(0, #people * 43 - 5))
     UI.edit:SetShown(own); UI.cancel:SetShown(own)
     active(UI.edit, open); active(UI.cancel, open)
-    UI.ownerHint:SetText(own and L("LEAD_HINT") or L("SELF_ONLY"))
 end
 
 local function parseTime(dayText, hourText)
@@ -419,7 +436,6 @@ function UI.OpenEditor(id)
         ed.capacity = input(ed, 403, 239, 143, 34, 2)
         label(ed, 24, 295, textKey("DESCRIPTION_LABEL"), 11, C.muted)
         ed.note = input(ed, 24, 317, 522, 112, 500, true)
-        ed.note.stateLabel = label(ed, 382, 295, "", 11, C.muted, 164)
         ed.note.updateAppearance()
         ed.share = button(ed, 24, 440, 295, 25, "", function(self)
             if not ed.eventId and GB.guildKey then ed.private = not ed.private; self.text:SetText(ed.private and L("VISIBILITY_PRIVATE") or L("VISIBILITY_GUILD")) end
@@ -448,7 +464,7 @@ function UI.OpenEditor(id)
     ed.private = (e and e.scope == "") or (not e and not GB.guildKey)
     ed.share.text:SetText(ed.private and L("VISIBILITY_PRIVATE") or L("VISIBILITY_GUILD"))
     active(ed.share, not id and GB.guildKey ~= nil)
-    ed.heading:SetText(e and L("EDIT_EVENT") or L("PLAN_TOGETHER"))
+    ed.heading:SetText(e and L("EDIT_EVENT") or L("CREATE_EVENT"))
     ed.title:SetText(e and e.title or "")
     setEditorDay(ed, stamp); ed.hour:SetText(date("%H:%M", stamp))
     ed.capacity:SetText(tostring(e and e.capacity or 40))
@@ -502,7 +518,7 @@ function UI.OpenGuest(player)
         end
         label(ed, 24, 315, textKey("SIGNUP_NOTE"), 11, C.muted)
         ed.note = input(ed, 24, 336, 522, 52, 120, true)
-        setLocalizedText(ed.note.hint, "NOTE_EXAMPLE")
+        setLocalizedText(ed.note.hint, "NOTE_HINT")
         ed.decisionLabel = label(ed, 24, 404, "", 11, C.muted, 522)
         for i, decision in ipairs({ "CONFIRMED", "BENCH", "PENDING" }) do
             local titles = { CONFIRMED = "CONFIRM", BENCH = "STATUS_BENCH", PENDING = "PENDING" }
@@ -588,6 +604,7 @@ end
 
 function UI.OpenInvites()
     if not GB.model then return end
+    if UI.mode == "LOOT" then UI.SetMode("PLAN") end
     if not UI.inboxPanel then
         UI.inboxOverlay = box(UI.frame, 0, 0, 1060, 720, { 0.015, 0.02, 0.03, 0.96 })
         UI.inboxOverlay:SetFrameLevel(UI.frame:GetFrameLevel() + 30); UI.inboxOverlay:EnableMouse(true)
@@ -636,7 +653,7 @@ function UI.Relocalize()
     if UI.toast then UI.toast:SetText("") end
     if UI.editor then
         local ed = UI.editor
-        ed.heading:SetText(L(ed.eventId and "EDIT_EVENT" or "PLAN_TOGETHER"))
+        ed.heading:SetText(L(ed.eventId and "EDIT_EVENT" or "CREATE_EVENT"))
         ed.share.text:SetText(L(ed.private and "VISIBILITY_PRIVATE" or "VISIBILITY_GUILD"))
         if ed.dayStamp then setEditorDay(ed, ed.dayStamp) end
         if ed.datePicker and ed.datePicker.month then ed.datePicker.render() end
@@ -648,38 +665,65 @@ function UI.Relocalize()
     if dialog then
         dialog.text, dialog.button1, dialog.button2 = L("CANCEL_CONFIRM"), L("CANCEL_EVENT"), L("BACK")
     end
-    if UI.languagePanel then UI.languagePanel.refresh() end
+    if UI.settingsMenu then UI.settingsMenu.refresh() end
+    if GB.LootUI then GB.LootUI.Relocalize() end
     UI.Refresh()
 end
 
-function UI.OpenLanguage()
-    if not UI.languagePanel then
-        local cover = box(UI.frame, 0, 0, 1060, 720, { 0.015, 0.02, 0.03, 0.96 })
-        UI.languageOverlay = cover
-        cover:SetFrameLevel(UI.frame:GetFrameLevel() + 40); cover:EnableMouse(true)
-        local panel = box(cover, 245, 195, 570, 305, C.panel, "GuildBoardLanguage")
-        UI.languagePanel = panel
-        table.insert(UISpecialFrames, "GuildBoardLanguage")
-        panel:SetScript("OnHide", function() cover:Hide() end)
-        label(panel, 24, 24, textKey("LANGUAGE_TITLE"), 23, C.white)
-        local help = label(panel, 24, 68, textKey("LANGUAGE_HELP"), 13, C.muted, 522)
-        help:SetHeight(70)
-        panel.buttons = {}
+function UI.SetMode(mode)
+    UI.Reset()
+    UI.mode = mode
+    if UI.settingsMenu then UI.settingsMenu:Hide() end
+    if UI.toast then UI.toast:SetText("") end
+    UI.Refresh()
+end
+
+function UI.ToggleSettings()
+    if UI.settingsMenu and UI.settingsMenu:IsShown() then UI.settingsMenu:Hide(); return end
+    if not UI.settingsMenu then
+        -- A transparent dismiss layer catches the next click outside the menu.
+        local cover = CreateFrame("Button", nil, UI.frame)
+        UI.settingsDismiss = cover
+        cover:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, 0)
+        cover:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", 0, 0)
+        cover:SetFrameLevel(UI.frame:GetFrameLevel() + 10); cover:EnableMouse(true)
+        local menu = box(cover, 0, 0, 204, 137, C.panel, "GuildBoardSettingsMenu")
+        UI.settingsMenu = menu
+        menu:ClearAllPoints(); menu:SetPoint("TOPLEFT", UI.settingsButton, "BOTTOMLEFT", 0, -5)
+        menu:SetClampedToScreen(true); menu:EnableMouse(true)
+        table.insert(UISpecialFrames, "GuildBoardSettingsMenu")
+        cover:SetScript("OnClick", function() menu:Hide() end)
+        menu:SetScript("OnHide", function()
+            cover:Hide()
+            UI.settingsButton.icon:SetVertexColor(unpack(C.muted))
+        end)
+        label(menu, 14, 12, textKey("LANGUAGE_TITLE"), 12, C.muted)
+        menu.buttons = {}
         for i, preference in ipairs({ "auto", "deDE", "enUS" }) do
             local title = preference == "auto" and textKey("LANGUAGE_AUTO") or (preference == "deDE" and "Deutsch" or "English")
-            panel.buttons[preference] = button(panel, 24 + (i - 1) * 176, 155, 170, 34, title, function()
+            local b = button(menu, 8, 35 + (i - 1) * 31, 188, 27, title, function()
                 GB.Locale.SetPreference(preference)
+                menu:Hide()
             end)
+            b.text:ClearAllPoints(); b.text:SetPoint("LEFT", 30, 0)
+            b.text:SetWidth(150); b.text:SetJustifyH("LEFT")
+            b.check = b:CreateTexture(nil, "OVERLAY")
+            b.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+            b.check:SetSize(18, 18); b.check:SetPoint("LEFT", 6, 0)
+            menu.buttons[preference] = b
         end
-        panel.current = label(panel, 24, 208, "", 13, C.gold, 522)
-        panel.refresh = function()
-            for preference, b in pairs(panel.buttons) do selected(b, GB.Locale.Preference() == preference) end
-            panel.current:SetText(L("LANGUAGE_EFFECTIVE", GB.Locale.Current() == "deDE" and "Deutsch" or "English"))
+        menu.refresh = function()
+            for preference, b in pairs(menu.buttons) do
+                local current = GB.Locale.Preference() == preference
+                selected(b, current); b.check:SetShown(current)
+            end
         end
-        button(panel, 376, 253, 170, 32, textKey("CLOSE"), function() cover:Hide() end)
+        menu:Hide()
     end
-    UI.languagePanel.refresh()
-    UI.languageOverlay:Show(); UI.languagePanel:Show()
+    GameTooltip:Hide()
+    UI.settingsMenu.refresh()
+    UI.settingsDismiss:Show(); UI.settingsMenu:Show()
+    UI.settingsButton.icon:SetVertexColor(unpack(C.gold))
 end
 
 function UI.Create()
@@ -694,22 +738,44 @@ function UI.Create()
     f:SetScript("OnDragStart", function(self) self:StartMoving() end)
     f:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
     f:SetScript("OnShow", UI.Refresh)
+    f:SetScript("OnHide", function() if UI.settingsMenu then UI.settingsMenu:Hide() end end)
     table.insert(UISpecialFrames, "GuildBoardFrame")
-    label(f, 22, 19, GB.NAME, 14, C.gold)
-    label(f, 20, 40, textKey("TAGLINE"), 26, C.white)
-    UI.guild = label(f, 22, 77, "", 12, C.muted, 735)
-    UI.languageButton = button(f, 780, 76, 219, 27, "", function() UI.OpenLanguage() end)
-    UI.newButton = button(f, 828, 35, 171, 36, textKey("NEW_EVENT"), function() UI.OpenEditor() end, true)
-    UI.inboxButton = button(f, 653, 35, 161, 36, textKey("INBOX_ZERO"), function() UI.OpenInvites() end)
+    UI.settingsButton = CreateFrame("Button", nil, f)
+    local settings = UI.settingsButton
+    settings:SetPoint("TOPLEFT", 18, -19); settings:SetSize(24, 24)
+    settings.icon = settings:CreateTexture(nil, "ARTWORK")
+    settings.icon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
+    settings.icon:SetSize(20, 20); settings.icon:SetPoint("CENTER")
+    settings.icon:SetVertexColor(unpack(C.muted))
+    settings:SetScript("OnClick", UI.ToggleSettings)
+    settings:SetScript("OnEnter", function(self)
+        self.icon:SetVertexColor(unpack(C.gold))
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText(L("SETTINGS"))
+        GameTooltip:AddLine(L("LANGUAGE_BUTTON", GB.Locale.PreferenceName()), 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    settings:SetScript("OnLeave", function(self)
+        self.icon:SetVertexColor(unpack(UI.settingsMenu and UI.settingsMenu:IsShown() and C.gold or C.muted))
+        GameTooltip:Hide()
+    end)
+    label(f, 50, 22, GB.NAME, 18, C.gold)
+    UI.guild = label(f, 50, 49, "", 11, C.muted, 570)
+    UI.planTab = button(f, 403, 20, 112, 30, textKey("PLANNING_TAB"), function() UI.SetMode("PLAN") end)
+    UI.lootTab = button(f, 525, 20, 112, 30, textKey("LOOT_TAB"), function() UI.SetMode("LOOT") end)
+    local planning = CreateFrame("Frame", nil, f)
+    planning:SetPoint("TOPLEFT", 0, 0); planning:SetSize(1060, 720)
+    UI.planning = planning
+    UI.newButton = button(planning, 828, 17, 171, 36, textKey("NEW_EVENT"), function() UI.OpenEditor() end, true)
+    UI.inboxButton = button(planning, 653, 17, 161, 36, textKey("INBOX_ZERO"), function() UI.OpenInvites() end)
     button(f, 1011, 13, 29, 27, "X", function() f:Hide() end)
     UI.filters = {}
     local labels = { "FILTER_ALL", "FILTER_RAIDS", "FILTER_DUNGEONS", "FILTER_MINE" }
     for i, key in ipairs({ "ALL", "RAID", "DUNGEON", "MINE" }) do
-        UI.filters[key] = button(f, 20 + (i - 1) * 82, 111, 76, 29, textKey(labels[i]), function()
+        UI.filters[key] = button(planning, 20 + (i - 1) * 82, 78, 76, 29, textKey(labels[i]), function()
             UI.filter = key; UI.listScroll:SetVerticalScroll(0); UI.Refresh()
         end)
     end
-    UI.searchBox = input(f, 20, 153, 322, 31, 80)
+    UI.searchBox = input(planning, 20, 120, 322, 31, 80)
     UI.searchBox:SetScript("OnTextChanged", function(self)
         UI.search = self:GetText()
         if UI.searchHint then UI.searchHint:SetShown(UI.search == "") end
@@ -717,17 +783,16 @@ function UI.Create()
     end)
     -- Keep the placeholder above the input's opaque backdrop.
     UI.searchHint = label(UI.searchBox.shell, 10, 9, textKey("SEARCH_HINT"), 12, C.muted, 302)
-    UI.listScroll, UI.listChild = scroll(f, 20, 198, 322, 432)
-    UI.noEvents = label(f, 39, 232, "", 15, C.muted, 276)
-    UI.count = label(f, 22, 641, "", 11, C.muted, 320)
-    UI.historyButton = button(f, 20, 672, 151, 26, textKey("HISTORY_OFF"), function(self)
+    UI.listScroll, UI.listChild = scroll(planning, 20, 165, 322, 465)
+    UI.noEvents = label(planning, 39, 199, "", 13, C.muted, 276)
+    UI.count = label(planning, 22, 641, "", 11, C.muted, 320)
+    UI.historyButton = button(planning, 20, 672, 151, 26, textKey("HISTORY_OFF"), function(self)
         UI.history = not UI.history
         self.text:SetText(UI.history and L("HISTORY_ON") or L("HISTORY_OFF"))
         UI.Refresh()
     end)
-    button(f, 180, 672, 162, 26, textKey("SYNC"), function() GB.RequestSync() end)
-    UI.emptyDetail = label(f, 444, 286, textKey("DETAIL_EMPTY"), 20, C.muted, 490)
-    UI.detail = box(f, 364, 111, 676, 544, C.panel)
+    button(planning, 180, 672, 162, 26, textKey("SYNC"), function() GB.RequestSync() end)
+    UI.detail = box(planning, 364, 78, 676, 577, C.panel)
     local d = UI.detail
     UI.eventTitle = label(d, 20, 19, "", 23, C.white, 478); UI.eventTitle:SetHeight(28)
     UI.eventType = label(d, 513, 25, "", 11, C.gold, 144)
@@ -742,6 +807,7 @@ function UI.Create()
     end)
     UI.descriptionArea:SetScript("OnLeave", function() GameTooltip:Hide() end)
     local metrics = box(d, 20, 164, 636, 36, C.bg)
+    UI.metrics = metrics
     UI.rolesSummary = label(metrics, 12, 11, "", 12, C.white, 380)
     UI.capacity = label(metrics, 439, 11, "", 12, C.green, 182)
     UI.mySignup = box(d, 20, 214, 636, 62, C.row, nil, "Button")
@@ -756,15 +822,15 @@ function UI.Create()
     UI.peopleLabel = label(d, 20, 298, textKey("PARTICIPANTS"), 11, C.muted)
     UI.addGuest = button(d, 454, 290, 202, 25, textKey("ADD_GUEST"), function() UI.OpenGuest() end)
     local columns = box(d, 20, 325, 618, 25, C.bg)
+    UI.peopleColumns = columns
     label(columns, 12, 7, textKey("CHARACTER"), 10, C.muted)
     label(columns, 245, 7, textKey("LEVEL"), 10, C.muted)
     label(columns, 306, 7, textKey("ROLE"), 10, C.muted)
     label(columns, 390, 7, textKey("STATUS"), 10, C.muted)
-    UI.personScroll, UI.personChild = scroll(d, 20, 354, 636, 124)
+    UI.personScroll, UI.personChild = scroll(d, 20, 354, 636, 157)
     UI.noPeople = label(d, 31, 378, textKey("NO_SIGNUPS"), 13, C.muted, 580)
-    UI.ownerHint = label(d, 20, 503, "", 10, C.muted, 410)
-    UI.edit = button(d, 440, 500, 104, 27, textKey("EDIT"), function() UI.OpenEditor(UI.selected) end)
-    UI.cancel = button(d, 552, 500, 104, 27, textKey("CANCEL_EVENT"), function()
+    UI.edit = button(d, 440, 533, 104, 27, textKey("EDIT"), function() UI.OpenEditor(UI.selected) end)
+    UI.cancel = button(d, 552, 533, 104, 27, textKey("CANCEL_EVENT"), function()
         StaticPopup_Show("GUILDBOARD_CANCEL", nil, nil, UI.selected)
     end)
     StaticPopupDialogs.GUILDBOARD_CANCEL = {
@@ -774,12 +840,17 @@ function UI.Create()
     }
     UI.syncText = label(f, 365, 668, "", 11, C.muted, 675)
     UI.toast = label(f, 365, 690, "", 10, C.green, 675)
+    GB.LootUI.Create()
     f:Hide()
 end
 function UI.Toggle()
     UI.Create()
     UI.frame:SetShown(not UI.frame:IsShown())
 end
+
+-- Shared controls keep both modes visually consistent and localized.
+UI.Widgets = { box = box, label = label, button = button, input = input, scroll = scroll,
+    resizeScroll = resizeScroll, selected = selected, active = active, textKey = textKey, colors = C }
 function UI.CreateLauncher()
     local b = box(Minimap, 0, 0, 34, 34, C.bg, "GuildBoardMinimapButton", "Button")
     b:SetFrameStrata("MEDIUM")

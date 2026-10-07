@@ -50,6 +50,7 @@ function GB.RefreshContext()
         GB.guildKey, GB.guildName, GB.actor = key, guild, actorName()
         GB.profileKey = "player:" .. (GetCurrentRegion() or 0) .. ":" .. Core.PlayerKey(GB.actor)
         GB.model = Core.New(GuildBoardDB, GB.actor, GB.profileKey, GB.Now)
+        GB.Loot.Init()
         GB.model.scope = key or ""
         -- Import 0.1 guild records once, preserving the untouched old buckets.
         local imported = GB.model.data.importedGuilds or {}
@@ -79,19 +80,26 @@ function GB.RefreshContext()
     refreshMembers()
     GB.UI.Refresh()
 end
-local function enqueue(fields, target)
+local function enqueueBatch(messages, target)
     if not GB.model or not GB.commsReady or (not target and not GB.guildKey) then return false end
-    serial = serial + 1
-    local packets = Wire.Packets(Wire.Encode(fields), session .. tostring(serial))
-    if not packets or (#queue - first + 1 + #packets) > 8000 then
-        GB.commError = "SYNC_BUSY"
-        return false
+    local batch = {}
+    for _, fields in ipairs(messages) do
+        serial = serial + 1
+        local packets = Wire.Packets(Wire.Encode(fields), session .. tostring(serial))
+        if not packets or (#queue - first + 1 + #batch + #packets) > 8000 then
+            GB.commError = "SYNC_BUSY"
+            return false
+        end
+        for _, packet in ipairs(packets) do
+            batch[#batch + 1] = { packet = packet, target = target, guild = GB.guildKey, retries = 0,
+                direct = fields[2] == "DIRECT" or fields[2] == "LOOT1" }
+        end
     end
-    for _, packet in ipairs(packets) do
-        queue[#queue + 1] = { packet = packet, target = target, guild = GB.guildKey, retries = 0, direct = fields[2] == "DIRECT" }
-    end
+    for _, item in ipairs(batch) do queue[#queue + 1] = item end
     return true
 end
+GB.EnqueueBatch = enqueueBatch
+local function enqueue(fields, target) return enqueueBatch({ fields }, target) end
 GB.Enqueue = enqueue
 function GB.BroadcastRecord(r, relay, target, request)
     local e = r.kind == "E" and r or GB.model:GetEvent(r.event)
@@ -144,6 +152,10 @@ end
 local function receive(body, sender, channel)
     local fields = Wire.Decode(body)
     if not fields then return end
+    if fields[2] == "LOOT1" then
+        if channel == "WHISPER" then GB.Loot.Receive(fields, sender) end
+        return
+    end
     if fields[2] == "DIRECT" then
         if channel == "WHISPER" then GB.Guests.Receive(fields, sender) end
         return
@@ -279,6 +291,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
     elseif event == "PLAYER_LOGIN" and GB.ready then
         if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
         GB.RefreshContext()
+        GB.Loot.CheckInstance()
         GB.Print(L("READY"))
     elseif (event == "PLAYER_GUILD_UPDATE" or event == "GUILD_ROSTER_UPDATE") and GB.ready then
         GB.RefreshContext()
@@ -287,6 +300,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
         if not issecretvalue or (not issecretvalue(message) and not issecretvalue(sender)) then GB.Guests.Whisper(message, GB.Name(sender)) end
     elseif (event == "CHAT_MSG_ADDON" or event == "CHAT_MSG_ADDON_LOGGED") and GB.model then
         local prefix, message, channel, sender = ...
+        if issecretvalue and (issecretvalue(prefix) or issecretvalue(message) or issecretvalue(channel) or issecretvalue(sender)) then return end
         if prefix ~= PREFIX or (channel ~= "GUILD" and channel ~= "WHISPER") then return end
         sender = GB.Name(sender)
         if not sender or Core.SamePlayer(sender, GB.actor) then return end
@@ -306,6 +320,7 @@ frame:SetScript("OnUpdate", function(_, elapsed)
     if reminderTick >= 15 then
         reminderTick = 0
         reminders()
+        GB.Loot.Tick()
         GB.UI.Refresh()
         if GB.model and not sync and #queue < first and GetTime() - lastHello >= 180 then GB.RequestSync() end
     end

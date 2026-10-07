@@ -1,6 +1,6 @@
 local _, GB = ...
 local L = GB.L
-GB.VERSION = "0.4.0"
+GB.VERSION = "0.5.0"
 GB.NAME = "Vassilis DungeonPlaner"
 GB.Core = {}
 local Core = GB.Core

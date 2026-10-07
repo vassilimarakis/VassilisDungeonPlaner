@@ -1,4 +1,4 @@
-# Vassilis DungeonPlaner 0.4.0
+# Vassilis DungeonPlaner 0.5.0
 
 Ein eigenständiges Termin-Addon auf **Deutsch und Englisch** für **WoW: Forever**. Vassilis DungeonPlaner zeigt eine Liste mit Raids, Dungeons und anderen Events. Es funktioniert **auch ohne Gilde**: mit manuellen Teilnehmern, direkten Einladungen und Antworten von Spielern ohne Addon.
 
@@ -9,14 +9,14 @@ Ein eigenständiges Termin-Addon auf **Deutsch und Englisch** für **WoW: Foreve
 ## Installation
 
 1. WoW vollständig schließen.
-2. Falls als ZIP erhalten, `VassilisDungeonPlaner-0.4.0.zip` entpacken.
+2. Falls als ZIP erhalten, `VassilisDungeonPlaner-0.5.0.zip` entpacken.
 3. Den Ordner **VassilisDungeonPlaner** in `Interface/AddOns` des tatsächlich verwendeten Forever-Clients kopieren. Der fertige Pfad muss auf `Interface/AddOns/VassilisDungeonPlaner/VassilisDungeonPlaner.toc` enden. Es darf kein zweiter VassilisDungeonPlaner-Ordner dazwischenliegen.
 4. WoW starten und **Vassilis DungeonPlaner** in der Addon-Liste aktivieren.
 5. Im Spiel **`/vdp`** eingeben oder das **VDP-Symbol an der Minimap** anklicken.
 
 Für den automatischen Addon-Abgleich sollten die beteiligten Spieler dieselbe Addon-Version verwenden. Spieler ohne Addon können per Whisper antworten oder vom Organisator manuell eingetragen werden. Es werden keine zusätzlichen Bibliotheken, Konten oder Webserver benötigt.
 
-**Neu in 0.4.0:** Deutsche und englische Oberfläche mit sofortigem Sprachwechsel sowie ein sichtbarer Suchhinweis. Datenformat und Abgleich bleiben mit 0.3.0 kompatibel. Bei einem Update innerhalb des Ordners `VassilisDungeonPlaner` genügt es, die Addon-Dateien bei geschlossenem WoW zu ersetzen; die SavedVariables bleiben erhalten.
+**Neu in 0.5.0:** Getrennte Bereiche **Planung** und **Beute**, automatische Beute-Historie und gezieltes Teilen abgeschlossener Dungeon- und Raidaufzeichnungen. Termin-Datenformat und Terminabgleich bleiben kompatibel; für die Beute-Übertragung benötigen beide Spieler mindestens 0.5.0. Bei einem Update innerhalb des Ordners `VassilisDungeonPlaner` genügt es, die Addon-Dateien bei geschlossenem WoW zu ersetzen; die SavedVariables bleiben erhalten.
 
 **Umstieg vom bisherigen Ordner GuildBoard (auch von 0.3.0):** Der Anzeigename lautet jetzt „Vassilis DungeonPlaner“, der Addon-Ordner und die TOC-Datei heißen `VassilisDungeonPlaner`. Damit vorhandene Daten weiter geladen werden:
 
@@ -33,13 +33,27 @@ Der neue Ordner lädt die alte Speicherdatei nicht automatisch. Nach dem Kopiere
 
 **Korrektur in 0.2.2:** Die Eingabegrenze berücksichtigt jetzt den zusätzlichen Platz im Textpuffer. Uhrzeiten wie `20:00` und Platzzahlen wie `10`, `20` und `40` lassen sich vollständig eingeben; die Prüfung auf gültige Uhrzeiten und 1–40 Plätze bleibt bestehen.
 
-**Update von 0.1:** Ein direktes Update auf 0.4.0 ist möglich. Die aktuelle alte Gildenablage und eigene alte Termine werden in ein Charakterprofil übernommen. Die bisherigen Gildenablagen bleiben unverändert erhalten. Alle Addon-Nutzer sollten gemeinsam aktualisieren.
+**Update von 0.1:** Ein direktes Update auf 0.5.0 ist möglich. Die aktuelle alte Gildenablage und eigene alte Termine werden in ein Charakterprofil übernommen. Die bisherigen Gildenablagen bleiben unverändert erhalten. Alle Addon-Nutzer sollten gemeinsam aktualisieren.
+
+## Beute-Historie und vergangene Raids teilen
+
+Oben zwischen **Planung** und **Beute** wechseln. Beim Betreten eines Dungeons oder Raids beginnt automatisch ein Lauf. Aufgezeichnet werden die vom Client gemeldeten blauen und epischen Beute-Empfänge: Gegenstand mit Tooltip, Menge, Empfänger und Uhrzeit. Die Filter zeigen Raids/Dungeons, Blau/Episch und die Beute aller Spieler oder nur die eigene. Das Suchfeld durchsucht Instanznamen und Aufzeichner.
+
+Beim Verlassen wird der Lauf abgeschlossen. Eine Rückkehr innerhalb von zehn Minuten setzt denselben Lauf fort. Nach einem Instanzreset **Neuer Lauf** klicken, damit weitere Durchgänge getrennt bleiben. Kurze Reloads innerhalb der Instanz setzen die Aufzeichnung fort. Nach über zwei Stunden ohne Aktualisierung beginnt ein neuer Lauf. Instanzname und Datum stammen vom aufgezeichneten Besuch; es wird keine eindeutige Blizzard-Raid-ID behauptet.
+
+**Vergangenen Raid senden:** Eine eigene abgeschlossene Aufzeichnung auswählen → **Teilen** → Charaktername bzw. Name-Realm eingeben → **Angebot senden**. Der Empfänger muss beim Raid nicht dabei gewesen sein. Bei ihm erscheint unter **Beute → Eingänge** das Angebot mit Aufzeichner, Datum und Anzahl der Einträge. Erst **Übernehmen** fordert die vollständigen Daten an. Nach vollständiger Prüfung wird die Historie gespeichert und dem Absender der Empfang bestätigt. **Verwerfen** lehnt das Angebot ab. Empfangene Aufzeichnungen sind gekennzeichnet; in dieser Version teilt jeweils der ursprüngliche Aufzeichner seinen Verlauf.
+
+Beide Spieler benötigen Version 0.5.0 oder neuer und müssen während der Übertragung online und für Addon-Whisper erreichbar sein. Eine gemeinsame Gilde oder Gruppe ist nicht erforderlich. Der Versand erfolgt gedrosselt und wartet bei WoW-Kommunikationssperren. Große Verläufe können mehrere Minuten benötigen. Es gibt keinen Postfachdienst für offline Spieler. Nach einem Reload oder einer abgebrochenen Übertragung erneut teilen; unvollständige Übertragungen werden nicht als Historie gespeichert. Erneuter Import desselben Aufzeichners aktualisiert denselben Eintrag. Verschiedene Aufzeichner desselben Raids bleiben getrennte Ansichten.
+
+Die Historie liegt pro Charakter im bisherigen `GuildBoardDB`, getrennt von der Terminbereinigung. Sie bleibt bis zum manuellen Löschen erhalten und wird beim normalen Ausloggen bzw. `/reload` auf die Festplatte geschrieben. Grenzen: 250 Läufe pro Charakter, 1.000 Beute-Einträge pro Lauf. Bei Erreichen der Grenze erscheint ein Hinweis; alte Verläufe werden nicht automatisch gelöscht.
+
+**Erfassungsgrenze:** Die Historie enthält beobachtete Beute-Meldungen, keine garantierte vollständige Boss-Dropliste. Nicht gemeldete, ungeplünderte, geschützte oder vor Aktivierung des Addons erhaltene Beute kann fehlen. Herstellung und Würfel-Ankündigungen werden nicht als zusätzliche Drops gezählt. Fehlende Item-Daten werden nachgeladen; ein endgültiger Ladefehler wird angezeigt. Geteilte Daten sind Aufzeichnungen des Absenders, kein von Blizzard beglaubigtes Loot-Protokoll. Die tatsächlichen Forever-Lootmeldungen und das Layout benötigen weiterhin einen Test im Spiel.
 
 ## Sprache / Language
 
 Standardmäßig ist **Automatisch** eingestellt: Ein deutscher WoW-Client verwendet Deutsch; englische und andere Clients verwenden Englisch.
 
-Im Hauptfenster oben rechts auf **„Sprache: …“ / „Language: …“** klicken. Dort stehen **Automatisch / Automatic**, **Deutsch** und **English** zur Auswahl. Die Oberfläche wechselt sofort, ohne `/reload`. Die Auswahl gilt für alle Charaktere dieses WoW-Accounts und wird zusammen mit den übrigen Einstellungen bei `/reload`, normalem Ausloggen oder Beenden gespeichert.
+Im Hauptfenster auf das kleine **Zahnrad links neben „Vassilis DungeonPlaner“** klicken. Im Dropdown stehen unter **Sprache / Language** die Optionen **Automatisch / Automatic**, **Deutsch** und **English** zur Auswahl; ein Häkchen markiert die aktuelle Einstellung. Nach der Auswahl oder einem Klick daneben schließt das Menü. Die Oberfläche wechselt sofort, ohne `/reload`. Die Auswahl gilt für alle Charaktere dieses WoW-Accounts und wird zusammen mit den übrigen Einstellungen bei `/reload`, normalem Ausloggen oder Beenden gespeichert.
 
 Übersetzt werden Oberfläche, Dialoge, Rollen, Status, Kalender, Tooltips, Fehlermeldungen, Erinnerungen und ausgehende Whisper-Einladungen. Eigene Termintitel, Beschreibungen, Namen und Notizen bleiben unverändert. Deutsche und englische Addon-Nutzer können gemeinsam planen; normale Whisper-Antworten wie `Accept`, `Ja`, `Maybe`, `Vielleicht`, `Decline` und `Nein` werden unabhängig von der eingestellten Sprache erkannt.
 
@@ -49,7 +63,7 @@ Das Suchfeld zeigt **„Suche …“** bzw. **„Search …“**, solange es lee
 
 - **Termin erstellen:** Titel, Aktivität, Datum, Uhrzeit, 1–40 Plätze und Beschreibung eintragen. Das geht ohne Gilde. Beim Erstellen in einer Gilde kann zwischen „Gilde + Eingeladene“ und „nur Eingeladene“ gewechselt werden. Ohne Gilde ist der Termin zunächst privat. Die Sichtbarkeit wird beim Erstellen festgelegt.
 - **Datum auswählen:** Auf das angezeigte Datum klicken, mit den Pfeilen den Monat wechseln und einen Tag anklicken. Alle Wochen haben sieben gleichmäßig ausgerichtete Felder; Randtage des Nachbarmonats sind gedimmt und ebenfalls auswählbar. „Heute“ und „Morgen“ wählen den Tag direkt. Die Uhrzeit bleibt unverändert. X oder ein Klick neben die Monatsauswahl schließt sie ohne Änderung.
-- **Beschreibung schreiben:** Die gesamte Textfläche einschließlich Rand ist anklickbar. Beim Darüberfahren wird der Rahmen hell, beim Schreiben gold und der Hinweis zeigt „Eingabe aktiv“. Escape oder der Wechsel in ein anderes Eingabefeld beendet den Fokus. Lange Texte lassen sich weiterhin mit dem Mausrad scrollen.
+- **Beschreibung schreiben:** Die gesamte Textfläche einschließlich Rand ist anklickbar. Beim Darüberfahren wird der Rahmen hell, beim Schreiben gold. Escape oder der Wechsel in ein anderes Eingabefeld beendet den Fokus. Lange Texte lassen sich weiterhin mit dem Mausrad scrollen. Ohne Beschreibung bleibt im Termin kein Platzhaltertext stehen; die Teilnehmerliste nutzt den freien Platz.
 - **Termine finden:** links nach Alle, Raids, Dungeons oder Meine filtern; die Suche filtert nach Titel. „Meine“ enthält eigene Termine sowie Termine mit eigener Rückmeldung.
 - **Anmelden:** Auf die Karte „Deine Anmeldung“ oder die eigene Teilnehmerzeile klicken. Im Dialog Tank, Heiler oder DD und die Antwort wählen, optional eine Notiz ergänzen, dann „Speichern“ klicken. „Abbrechen“ verwirft den Entwurf. Die Liste selbst enthält keine Eingabefelder.
 - **Charakter und Level:** Die Liste zeigt den Charakternamen in der bekannten Klassenfarbe, Level, Rolle und Status. Vollständiger Name-Realm und Notiz erscheinen beim Darüberfahren. Klasse und Level der eigenen Anmeldung stammen beim Speichern vom eingeloggten Charakter. Das gespeicherte Level ist ein Stand der letzten Anmeldung, keine laufende Live-Abfrage. Der Raidlead kann bei Gästen das Level eintragen; unbekannte Level erscheinen als „—“ und unbekannte Klassen neutral.

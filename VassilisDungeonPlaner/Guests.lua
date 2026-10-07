@@ -34,7 +34,9 @@ function G.ValidName(raw)
     local name = GB.Name(raw)
     if not name then return nil end
     local character, realm = name:match("^([^-]+)%-(.+)$")
-    if not character or #name > 100 or character:find("[%d%p%s]") or realm:find("[%c|@/~]") then return nil end
+    -- Lua character classes depend on the host locale and may classify UTF-8
+    -- name bytes as punctuation. Reject ASCII nonletters explicitly instead.
+    if not character or #name > 100 or character:find("[%z\1-\64\91-\96\123-\127]") or realm:find("[%z\1-\31\127|@/~]") then return nil end
     return name
 end
 local function newCode()

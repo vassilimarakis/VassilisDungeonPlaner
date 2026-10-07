@@ -42,6 +42,8 @@ end
 CreateFrame = frame
 function methods:CreateFontString() return frame("FontString", nil, self) end
 function methods:CreateTexture() return frame("Texture", nil, self) end
+function methods:SetTexture(path) self.texture = path end
+function methods:SetVertexColor(...) self.vertexColor = { ... } end
 function methods:SetText(value)
     assert(type(value) == "string" or type(value) == "number", "SetText expects a string or number")
     local changed = self.textValue ~= tostring(value)
@@ -79,6 +81,7 @@ function methods:GetVerticalScroll() return self.scroll end
 function methods:GetNumLines() return 1 end
 function methods:SetScrollChild(child) self.child = child end
 function methods:AddLine(value) assert(type(value) == "string") end
+function methods:SetHyperlink(value) assert(type(value) == "string"); self.link = value end
 for _, name in ipairs({ "SetPoint", "ClearAllPoints", "SetBackdrop", "SetBackdropColor", "SetBackdropBorderColor", "SetFont", "SetTextColor", "SetJustifyH", "SetJustifyV", "SetWordWrap", "SetAlpha", "EnableMouseWheel", "SetAutoFocus", "SetMaxBytes", "SetMaxLetters", "SetMultiLine", "EnableMouse", "SetColorTexture", "SetFrameStrata", "SetScale", "SetMovable", "SetClampedToScreen", "RegisterForDrag", "StartMoving", "StopMovingOrSizing", "RegisterForClicks", "RegisterEvent", "SetOwner" }) do
     methods[name] = function() end
 end
@@ -88,3 +91,41 @@ Minimap = frame("Frame", nil, UIParent)
 GameTooltip = frame("Frame", nil, UIParent)
 function StaticPopup_Show(key) assert(StaticPopupDialogs[key]) end
 function click(widget) assert(widget.scripts.OnClick, "Missing click handler"); widget.scripts.OnClick(widget, "LeftButton") end
+
+-- Loot events and delayed item metadata for recording/transfer integration tests.
+instanceName, instanceKind, instanceMap, instanceDifficulty = "World", "none", 0, 0
+function GetInstanceInfo() return instanceName, instanceKind, instanceDifficulty, "Normal", 40, 0, false, instanceMap end
+itemData, itemRequests = {}, {}
+C_Item = {
+    GetItemInfo = function(item)
+        local id = tonumber(tostring(item):match("item:(%d+)") or item)
+        local data = itemData[id]
+        if data then return data.name, nil, data.quality, 60, 60, "Armor", "Cloth", 1, "", data.icon or 134400 end
+    end,
+    RequestLoadItemDataByID = function(id) itemRequests[id] = true end,
+}
+function SetLootLocale(locale)
+    if locale == "deDE" then
+        LOOT_ITEM_SELF, LOOT_ITEM_SELF_MULTIPLE = "Ihr erhaltet Beute: %s.", "Ihr erhaltet Beute: %sx%d."
+        LOOT_ITEM, LOOT_ITEM_MULTIPLE = "%s erhält Beute: %s.", "%s erhält Beute: %sx%d."
+    else
+        LOOT_ITEM_SELF, LOOT_ITEM_SELF_MULTIPLE = "You receive loot: %s.", "You receive loot: %sx%d."
+        LOOT_ITEM, LOOT_ITEM_MULTIPLE = "%s receives loot: %s.", "%s receives loot: %sx%d."
+    end
+end
+SetLootLocale(clientLocale)
+function enterInstance(name, kind, map)
+    instanceName, instanceKind, instanceMap = name, kind, map
+    GB.Loot.frame.scripts.OnEvent(nil, "ZONE_CHANGED_NEW_AREA")
+end
+function lootLink(id) return "|cff0070dd|Hitem:" .. id .. ":0:0:0:0:0:0:0|h[Item " .. id .. "]|h|r" end
+function loot(id, player, quantity, lineID)
+    local link = lootLink(id)
+    local message
+    if player == "self" then
+        message = quantity > 1 and string.format(LOOT_ITEM_SELF_MULTIPLE, link, quantity) or string.format(LOOT_ITEM_SELF, link)
+    else
+        message = quantity > 1 and string.format(LOOT_ITEM_MULTIPLE, player, link, quantity) or string.format(LOOT_ITEM, player, link)
+    end
+    GB.Loot.frame.scripts.OnEvent(nil, "CHAT_MSG_LOOT", message, "", "", "", "", "", 0, 0, "", 0, lineID)
+end
